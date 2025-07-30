@@ -56,7 +56,7 @@ class RAGFlowClient:
         self.dataset_id = None
         self.chat_id = None
         dataset_id = self.create_dataset()
-        chat_id = self.create_chat_assistant(dataset_id)
+        chat_id = self.create_chat_assistant()
         self.dataset_id = dataset_id
         self.chat_id = chat_id
 
@@ -74,6 +74,7 @@ class RAGFlowClient:
         self.parse_document(document_id)
         self.wait_for_parsing_complete(self.dataset_id, document_id)
         self.update_chat_assistant()
+
         session_id = self.create_chat_session()
         functional_requirements_list = self.get_functional_requirements(
             session_id, document_name
@@ -121,7 +122,7 @@ class RAGFlowClient:
 
     # template done fix the payload accordingly
 
-    def create_chat_assistant(self, dataset_id):
+    def create_chat_assistant(self):
         """
         curl --location 'http://localhost:9380/api/v1/chats' \
         --header 'Content-Type: application/json' \
@@ -424,14 +425,10 @@ class RAGFlowClient:
             print(f"❌ Error generating test checklist: {e}")
             raise
 
-    def update_chat_assistant(self):
+    def update_chat_assistant(self, chat_id, dataset_id):
         """
-        # list dataset
-        curl --location --request GET 'http://localhost:9380/api/v1/datasets' \
-        --header 'Content-Type: application/json' \
-        --header 'Authorization: Bearer ••••••' 
-        
-        # update chat assistant 
+        Update the chat assistant with the latest dataset.
+
         curl --location --request PUT 'http://localhost:9380/api/v1/chats/{{chat_id}}' \
         --header 'Content-Type: application/json' \
         --header 'Authorization: Bearer ••••••' \
@@ -443,29 +440,76 @@ class RAGFlowClient:
             }
         }'
         """
-        # check dataset to add to chat assitant 
-        # update chat assistant
-        dataset_id = self.dataset_id
-        if dataset_id is None:
-            raise ValueError("Dataset ID is not set. Please create a dataset first.")
+
         try:
+            url = f"{BASE_URL}{UPDATE_CHAT_ASSISTANT.format(chat_id=chat_id)}"
+            payload = {
+                "dataset_ids": [dataset_id],
+                "prompt": {
+                    "similarity_threshold": 0.2,
+                    "keywords_similarity_weight": 0.5
+                }
+            }
+
+            response = requests.put(url, headers=HEADERS, json=payload)
+            response.raise_for_status()
+            result = response.json()
+
+            if result.get("code") == 0:
+                print(f"✅ Chat assistant updated with dataset {dataset_id}")
+            else:
+                raise Exception(
+                    f"Failed to update chat assistant: {result.get('message')}")
+        except Exception as e:
+            print(f"❌ Error updating chat assistant: {e}")\
+            
+    def is_dataset_include_parsed_file(self, dataset_id):
+        """
+        Check if the dataset includes the parsed file.
+
+        curl --location --request GET 'http://localhost:9380/api/v1/datasets' \
+        --header 'Content-Type: application/json' \
+        --header 'Authorization: Bearer ••••••' 
+
+        """
+        try: 
             url = f"{BASE_URL}{LIST_DATASETS}"
             response = requests.get(url, headers=HEADERS)
             response.raise_for_status()
-            datasets     = response.json().get('data', [])
-            for dataset in datasets:
-                if dataset.get('id') == dataset_id and dataset.get('chunk_count') > 0:
-                    self.update_chat_assistant_with_dataset(dataset_id)
+            result = response.json()
+
+            if result.get("code") == 0:
+                datasets = result.get("data", [])
+                for dataset in datasets:
+                    if dataset.get("id") == dataset_id:
+                        chunk_count = dataset.get("chunk_count", 0)
+                        if chunk_count > 0:
+                            print(f"✅ Dataset {dataset_id} includes parsed file.")
+                            return True
+                        
+            print(f"❌ Dataset {dataset_id} does not include parsed file.")
+            return False
+           
+        except Exception as e:
+            print(f"❌ Error checking dataset for parsed file: {e}")
+            return False
+
+    def update_chat_assistant_with_dataset(self):
+        # check dataset to add to chat assitant 
+        # update chat assistant
+        dataset_id = self.dataset_id
+        chat_id = self.chat_id
+        if dataset_id is None:
+            raise ValueError("Dataset ID is not set. Please create a dataset first.")
+        try:
+            if self.is_dataset_include_parsed_file(dataset_id):
+                self.update_chat_assistant(chat_id, dataset_id)
+            else:
+                print("❌ Dataset does not include parsed file. Skipping chat assistant update.")
+                return
         except Exception as e:
             print(f"❌ Error updating chat assistant: {e}")
             raise
 
-            
 
-        pass
 
-def update_chat_assistant(dataset_id):
-    """
-    Update the chat assistant with the latest dataset.
-    """
-    pass 
