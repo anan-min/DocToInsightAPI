@@ -4,7 +4,7 @@ import os
 from prompt import FUNCTIONAL_REQUIREMENTS_PROMPT, TEST_CHECKLIST_PROMPT
 from helper import parse_chat_completion_result
 
-RAGFLOW_API_KEY = "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz"
+RAGFLOW_API_KEY = "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz"
 BASE_URL = "http://localhost:9380"
 PARSED = "1"
 
@@ -16,7 +16,7 @@ LIST_DATASETS = "/api/v1/datasets"
 UPLOAD_DOCUMENT = "/api/v1/datasets/{dataset_id}/documents"
 PARSE_DOCUMENT = "/api/v1/datasets/{dataset_id}/chunks"
 LIST_DOCUMENTS = "/api/v1/datasets/{dataset_id}/documents"
-# CHAT 
+# CHAT
 CREATE_CHAT_ASSISTANT = "/api/v1/chats"
 UPDATE_CHAT_ASSISTANT = "/api/v1/chats/{chat_id}"
 CREATE_CHAT_SESSION = "/api/v1/chats/{chat_id}/sessions"
@@ -59,6 +59,7 @@ class RAGFlowClient:
         chat_id = self.create_chat_assistant()
         self.dataset_id = dataset_id
         self.chat_id = chat_id
+        self.dataset_added = False
 
     # upload and parse document then analyze data
     def analyze_document(self, file_path):
@@ -73,12 +74,13 @@ class RAGFlowClient:
 
         self.parse_document(document_id)
         self.wait_for_parsing_complete(self.dataset_id, document_id)
-        self.update_chat_assistant()
+        self.update_chat_assistant(self.chat_id, self.dataset_id)
 
         session_id = self.create_chat_session()
         functional_requirements_list = self.get_functional_requirements(
             session_id, document_name
         )
+        print(f"functional_requirements_list: {functional_requirements_list}")
         test_checklist = self.generate_test_checklist(
             session_id,
             functional_requirements_list
@@ -106,7 +108,6 @@ class RAGFlowClient:
             response = requests.post(url, headers=HEADERS, json=payload)
             response.raise_for_status()
             result = response.json()
-            print(f"response: {result}")
 
             if result.get("code") == 0:
                 dataset_info = result.get("data")
@@ -151,7 +152,6 @@ class RAGFlowClient:
             response = requests.post(url, headers=HEADERS, json=payload)
             response.raise_for_status()
             result = response.json()
-            print(f"response: {result}")
 
             if result.get("code") == 0:
                 chat_info = result.get("data")
@@ -276,7 +276,6 @@ class RAGFlowClient:
                     return None
             else:
                 print(f"❌ HTTP error during upload: {response.status_code}")
-                print(f"Response: {response.text}")
                 return None
 
         except FileNotFoundError:
@@ -303,7 +302,6 @@ class RAGFlowClient:
             response = requests.post(url, headers=HEADERS, json=payload)
             response.raise_for_status()
             result = response.json()
-            print(f"Parse response: {result}")
 
             if result.get("code") == 0:
                 print("✅ Document parsing started (asynchronous)")
@@ -332,13 +330,14 @@ class RAGFlowClient:
                 result = response.json()
 
                 if result.get("code") == 0:
-                    documents = result.get("data", [])
+                    documents = result.get("data", [])['docs']
                     for document in documents:
                         if document.get("id") == document_id:
-                            status = document.get("status")
-                            if status == PARSED:
+                            status = document.get("run")
+                            if status == "DONE":
                                 print("✅ Document parsing complete")
                                 return True
+                print("⏳ Document parsing in progress...")
                 time.sleep(5)  # Check every 3 seconds
 
             except Exception as e:
@@ -362,10 +361,14 @@ class RAGFlowClient:
         try:
             # ask the chat assistant to get functional requirements
             print("📝 Getting functional requirements from the document...")
+            print(f"document_name: {document_name}")
             chat_completion = self.chat_completion(
                 session_id,
-                FUNCTIONAL_REQUIREMENTS_PROMPT.format(document_name)
+                FUNCTIONAL_REQUIREMENTS_PROMPT.format(
+                    document_name=document_name)
             )
+
+            print(f"chat_completion: {chat_completion}")
             if not chat_completion:
                 raise ValueError(
                     "No functional requirements found in the document.")
@@ -462,7 +465,8 @@ class RAGFlowClient:
                     f"Failed to update chat assistant: {result.get('message')}")
         except Exception as e:
             print(f"❌ Error updating chat assistant: {e}")\
-            
+
+
     def is_dataset_include_parsed_file(self, dataset_id):
         """
         Check if the dataset includes the parsed file.
@@ -472,7 +476,7 @@ class RAGFlowClient:
         --header 'Authorization: Bearer ••••••' 
 
         """
-        try: 
+        try:
             url = f"{BASE_URL}{LIST_DATASETS}"
             response = requests.get(url, headers=HEADERS)
             response.raise_for_status()
@@ -484,32 +488,32 @@ class RAGFlowClient:
                     if dataset.get("id") == dataset_id:
                         chunk_count = dataset.get("chunk_count", 0)
                         if chunk_count > 0:
-                            print(f"✅ Dataset {dataset_id} includes parsed file.")
+                            print(
+                                f"✅ Dataset {dataset_id} includes parsed file.")
                             return True
-                        
+
             print(f"❌ Dataset {dataset_id} does not include parsed file.")
             return False
-           
+
         except Exception as e:
             print(f"❌ Error checking dataset for parsed file: {e}")
             return False
 
     def update_chat_assistant_with_dataset(self):
-        # check dataset to add to chat assitant 
+        # check dataset to add to chat assitant
         # update chat assistant
         dataset_id = self.dataset_id
         chat_id = self.chat_id
         if dataset_id is None:
-            raise ValueError("Dataset ID is not set. Please create a dataset first.")
+            raise ValueError(
+                "Dataset ID is not set. Please create a dataset first.")
         try:
             if self.is_dataset_include_parsed_file(dataset_id):
                 self.update_chat_assistant(chat_id, dataset_id)
             else:
-                print("❌ Dataset does not include parsed file. Skipping chat assistant update.")
+                print(
+                    "❌ Dataset does not include parsed file. Skipping chat assistant update.")
                 return
         except Exception as e:
             print(f"❌ Error updating chat assistant: {e}")
             raise
-
-
-
