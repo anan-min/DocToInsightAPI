@@ -4,7 +4,7 @@ import os
 from prompt import FUNCTIONAL_REQUIREMENTS_PROMPT, TEST_CHECKLIST_PROMPT
 from helper import parse_chat_completion_result
 
-RAGFLOW_API_KEY = "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz"
+RAGFLOW_API_KEY = "ragflow-RiODZiZTFjNmRkYjExZjA5NjMzNTI4MW"
 BASE_URL = "http://localhost:9380"
 PARSED = "1"
 
@@ -420,7 +420,10 @@ class RAGFlowClient:
                         chat_completion)
                     print(
                         f"✅ Test checklist generated for requirement: {_testchecklist}")
-                    testchecklist.extend(_testchecklist)
+                    testchecklist.append({
+                        "requirement": requirement,
+                        "testchecklist": _testchecklist
+                    })
 
             print("✅ Test checklist generated successfully")
             return testchecklist
