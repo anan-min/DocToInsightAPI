@@ -24,8 +24,8 @@ app.add_middleware(
 
 ragflow = RAGFlowClient()
 analysis_results = {}
-running_tasks = {}  
-cancellation_events = {} 
+running_tasks = {}
+cancellation_events = {}
 
 
 @app.get("/")
@@ -79,7 +79,7 @@ async def get_analysis_results(task_id: str):
     return result
 
 
-@app.put("/stop/{task_id}")
+@app.post("/stop/{task_id}")
 async def stop_analysis(task_id: str):
     if task_id not in analysis_results:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -90,7 +90,7 @@ async def stop_analysis(task_id: str):
     # Set cancellation event first to stop ongoing operations
     if task_id in cancellation_events:
         cancellation_events[task_id].set()
-        
+
     # Cancel the running task if it exists
     if task_id in running_tasks:
         task = running_tasks[task_id]
@@ -103,7 +103,7 @@ async def stop_analysis(task_id: str):
 
         # Clean up
         running_tasks.pop(task_id, None)
-        
+
     # Clean up cancellation event
     if task_id in cancellation_events:
         cancellation_events.pop(task_id, None)
@@ -148,7 +148,7 @@ async def analyze_document_async(task_id, file_path):
         # Create cancellation event for this task
         cancellation_event = asyncio.Event()
         cancellation_events[task_id] = cancellation_event
-        
+
         # Keep the original start_time when updating to processing
         start_time = analysis_results[task_id]["start_time"]
         analysis_results[task_id] = {
@@ -237,12 +237,12 @@ def cleanup_old_results():
             if not task.done():
                 task.cancel()
             running_tasks.pop(task_id, None)
-            
+
         # Set cancellation event and clean up
         if task_id in cancellation_events:
             cancellation_events[task_id].set()
             cancellation_events.pop(task_id, None)
-            
+
         # Remove result
         analysis_results.pop(task_id, None)
         print(f"Cleaned up old result for task {task_id}")
@@ -251,7 +251,7 @@ def cleanup_old_results():
 app.add_api_route("/", root, methods=["GET"])
 app.add_api_route("/main", main, methods=["POST"])
 app.add_api_route("/status/{task_id}", get_analysis_results, methods=["GET"])
-app.add_api_route("/stop/{task_id}", stop_analysis, methods=["PUT"])
+app.add_api_route("/stop/{task_id}", stop_analysis, methods=["POST"])
 
 
 if __name__ == "__main__":

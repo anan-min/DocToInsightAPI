@@ -472,7 +472,7 @@
 				{
 					"name": "API stop",
 					"request": {
-						"method": "PUT",
+						"method": "POST",
 						"header": [],
 						"url": {
 							"raw": "{{DocAPI}}/stop/{{task_id}}",
