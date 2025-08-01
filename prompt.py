@@ -17,14 +17,14 @@ document_name: {document_name}
 functional_requirement:
 {functional_requirement}
 
-Generate a test checklist for this functional requirement.
+สร้างรายการตรวจสอบการทดสอบสำหรับความต้องการเชิงฟังก์ชันนี้ โปรดแปลและสร้างรายการทดสอบเป็นภาษาไทย
 
 Return format:
 [
-    "Verify registration form accepts valid inputs.",
-    "Check error handling for missing fields.",
-    "Ensure login succeeds with correct credentials.",
-    "Ensure login fails with incorrect credentials."
+    "ตรวจสอบว่าฟอร์มลงทะเบียนรับข้อมูลที่ถูกต้อง",
+    "ตรวจสอบการจัดการข้อผิดพลาดเมื่อข้อมูลไม่ครบถ้วน", 
+    "ตรวจสอบว่าการเข้าสู่ระบบสำเร็จเมื่อใช้ข้อมูลที่ถูกต้อง",
+    "ตรวจสอบว่าการเข้าสู่ระบบล้มเหลวเมื่อใช้ข้อมูลที่ผิด"
 ]
 """
 

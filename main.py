@@ -1,10 +1,12 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
 import uvicorn
 import tempfile
-
+import uuid
+import time
+import asyncio
 from ragflow import RAGFlowClient
 
 
@@ -21,38 +23,40 @@ app.add_middleware(
 )
 
 ragflow = RAGFlowClient()
+analysis_results = {}
+running_tasks = {}  # Store running tasks for cancellation
 
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to the PDF Upload API. Use POST /main to upload a PDF file."}
+    return {"message": "Welcome to document analysis API. Please upload a document file."}
 
 
 @app.post("/main")
 async def main(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     try:
-        if not file or (not file.filename.endswith('.docx') and not file.filename.endswith('.doc')):
-            raise HTTPException(
-                status_code=400, detail="Invalid file type. Please upload a PDF file.")
-        file_content = await file.read()
-        file_name = file.filename
-        print(f"Received file: {file_name}")
+        file_name, file_path = await upload_file(file)
 
-        temp_dir = tempfile.gettempdir()
-        file_path = os.path.join(temp_dir, file_name)
-        logger.info(f"Saving file to: {file_path}")
+        task_id = str(uuid.uuid4())
+        analysis_results[task_id] = {
+            "status": "pending", "timestamp": time.time()}
 
-        with open(file_path, "wb") as f:
-            f.write(file_content)
+        if len(analysis_results) > 100:
+            cleanup_old_results()
 
-        test_checklist = ragflow.analyze_document(file_path)
-        print(f"test_checklist: {test_checklist}")
+        # Create asyncio task for cancellation support
+        task = asyncio.create_task(analyze_document_async(task_id, file_path))
+        running_tasks[task_id] = task
+
+        # Don't wait for the task, let it run in background
+        # The task will update analysis_results when complete
 
         return {
-            "message": f"File '{file_name}' uploaded and analyzed successfully.",
-            "test_checklist": test_checklist,
+            "message": f"File '{file_name}' uploaded successfully. Analysis started.",
+            "task_id": task_id,
             "file_name": file_name
         }
     except Exception as e:
@@ -61,8 +65,137 @@ async def main(
             status_code=500, detail="Error processing the file.")
 
 
-app.add_api_route("/main", main, methods=["POST"])
+@app.get("/status/{task_id}")
+async def get_analysis_results(task_id: str):
+    if task_id not in analysis_results:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    result = analysis_results[task_id]
+    add_status_message(result)
+
+    return result
+
+
+@app.put("/stop/{task_id}")
+async def stop_analysis(task_id: str):
+    if task_id not in analysis_results:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    # Cancel the running task if it exists
+    if task_id in running_tasks:
+        task = running_tasks[task_id]
+        if not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+
+        # Clean up
+        running_tasks.pop(task_id, None)
+
+    # Update status
+    analysis_results[task_id]["status"] = "cancelled"
+    analysis_results[task_id]["message"] = "Analysis was cancelled by user"
+    analysis_results[task_id]["timestamp"] = time.time()
+
+    return {"message": "Analysis cancelled successfully"}
+
+
+def add_status_message(result):
+    if result["status"] == "pending":
+        result["message"] = "Analysis is queued for processing"
+    elif result["status"] == "processing":
+        result["message"] = "Document is being analyzed..."
+    elif result["status"] == "completed":
+        result["message"] = "Analysis completed successfully"
+    elif result["status"] == "failed":
+        result["message"] = "Analysis failed"
+    elif result["status"] == "cancelled":
+        result["message"] = "Analysis was cancelled"
+
+
+async def analyze_document_async(task_id, file_path):
+    """Async version of analyze_document_background for cancellation support"""
+    try:
+        analysis_results[task_id] = {
+            "status": "processing", "timestamp": time.time()}
+
+        # Check if cancelled before starting
+        if task_id in running_tasks and running_tasks[task_id].cancelled():
+            return
+
+        # Run the analysis in a thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, ragflow.analyze_document, file_path)
+
+        # Check if cancelled after analysis
+        if task_id in running_tasks and running_tasks[task_id].cancelled():
+            return
+
+        analysis_results[task_id] = {
+            "status": "completed", "result": result, "timestamp": time.time()}
+
+    except asyncio.CancelledError:
+        analysis_results[task_id] = {
+            "status": "cancelled", "timestamp": time.time()}
+        raise  # Re-raise to properly handle cancellation
+    except Exception as e:
+        analysis_results[task_id] = {
+            "status": "failed", "error": str(e), "timestamp": time.time()}
+    finally:
+        # Clean up the temporary file and running task reference
+        try:
+            os.remove(file_path)
+        except:
+            pass
+
+        # Remove from running tasks
+        if task_id in running_tasks:
+            del running_tasks[task_id]
+
+
+async def upload_file(file):
+    if not file or (not file.filename.endswith('.docx') and not file.filename.endswith('.doc')):
+        raise HTTPException(
+            status_code=400, detail="Invalid file type. Please upload a PDF file.")
+    file_content = await file.read()
+    file_name = file.filename
+    print(f"Received file: {file_name}")
+
+    temp_dir = tempfile.gettempdir()
+    file_path = os.path.join(temp_dir, file_name)
+    logger.info(f"Saving file to: {file_path}")
+
+    with open(file_path, "wb") as f:
+        f.write(file_content)
+    return file_name, file_path
+
+
+def cleanup_old_results():
+    """Remove results older than 1 hour"""
+    current_time = time.time()
+    to_remove = []
+    for task_id, result in analysis_results.items():
+        if current_time - result.get("timestamp", 0) > 3600:  # 1 hour
+            to_remove.append(task_id)
+
+    for task_id in to_remove:
+        # Cancel running task if it exists
+        if task_id in running_tasks:
+            task = running_tasks[task_id]
+            if not task.done():
+                task.cancel()
+            del running_tasks[task_id]
+
+        # Remove result
+        del analysis_results[task_id]
+        print(f"Cleaned up old result for task {task_id}")
+
+
 app.add_api_route("/", root, methods=["GET"])
+app.add_api_route("/main", main, methods=["POST"])
+app.add_api_route("/status/{task_id}", get_analysis_results, methods=["GET"])
 
 
 if __name__ == "__main__":

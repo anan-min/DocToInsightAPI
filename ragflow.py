@@ -3,6 +3,7 @@ import requests
 import os
 from prompt import FUNCTIONAL_REQUIREMENTS_PROMPT, TEST_CHECKLIST_PROMPT
 from helper import parse_chat_completion_result
+import threading
 
 RAGFLOW_API_KEY = "ragflow-RiODZiZTFjNmRkYjExZjA5NjMzNTI4MW"
 BASE_URL = "http://localhost:9380"
@@ -55,10 +56,14 @@ class RAGFlowClient:
     def __init__(self):
         self.dataset_id = None
         self.chat_id = None
+
         dataset_id = self.create_dataset()
         chat_id = self.create_chat_assistant()
+
         self.dataset_id = dataset_id
         self.chat_id = chat_id
+
+        self._lock = threading.Lock()
         self.dataset_added = False
 
     # upload and parse document then analyze data
@@ -69,12 +74,13 @@ class RAGFlowClient:
 
         document_id = document_info.get('id')
         document_name = document_info.get('name')
-        self.document_id = document_id
-        self.document_name = document_name
 
         self.parse_document(document_id)
         self.wait_for_parsing_complete(self.dataset_id, document_id)
-        self.update_chat_assistant(self.chat_id, self.dataset_id)
+
+        with self._lock:
+            if not self.dataset_added:
+                self.update_chat_assistant(self.chat_id, self.dataset_id)
 
         session_id = self.create_chat_session()
         functional_requirements_list = self.get_functional_requirements(
@@ -83,7 +89,8 @@ class RAGFlowClient:
         print(f"functional_requirements_list: {functional_requirements_list}")
         test_checklist = self.generate_test_checklist(
             session_id,
-            functional_requirements_list
+            functional_requirements_list,
+            document_name
         )
         return test_checklist
 
@@ -285,6 +292,9 @@ class RAGFlowClient:
             print(f"❌ Error uploading document: {str(e)}")
             return None
 
+    def is_document_exist(self, dataset_id, file_path):
+        pass
+
     def parse_document(self, document_id):
         """
         curl --location 'http://localhost:9380/api/v1/datasets/1629aa2a6cf611f08399968c9561210e/chunks' \
@@ -304,7 +314,7 @@ class RAGFlowClient:
             result = response.json()
 
             if result.get("code") == 0:
-                print("✅ Document parsing started (asynchronous)")
+                print(f"✅ {document_id} parsing started (asynchronous)")
                 return True
             else:
                 raise Exception(
@@ -335,9 +345,9 @@ class RAGFlowClient:
                         if document.get("id") == document_id:
                             status = document.get("run")
                             if status == "DONE":
-                                print("✅ Document parsing complete")
+                                print(f"✅ {document_id} parsing complete")
                                 return True
-                print("⏳ Document parsing in progress...")
+                print(f"{document_id} parsing status: {status}")
                 time.sleep(5)  # Check every 3 seconds
 
             except Exception as e:
@@ -381,7 +391,7 @@ class RAGFlowClient:
             raise
 
     # ask the chat assistant to generate test checklist based on functional requirements each requirement are one chat completion
-    def generate_test_checklist(self, session_id, functional_requirements):
+    def generate_test_checklist(self, session_id, functional_requirements, document_name):
         """
         document_name: {document_name}
 
@@ -407,7 +417,7 @@ class RAGFlowClient:
                 chat_completion = self.chat_completion(
                     session_id,
                     TEST_CHECKLIST_PROMPT.format(
-                        document_name=self.document_name,
+                        document_name=document_name,
                         functional_requirement=requirement,
                     )
                 )
@@ -463,6 +473,7 @@ class RAGFlowClient:
 
             if result.get("code") == 0:
                 print(f"✅ Chat assistant updated with dataset {dataset_id}")
+                self.dataset_added = True
             else:
                 raise Exception(
                     f"Failed to update chat assistant: {result.get('message')}")
