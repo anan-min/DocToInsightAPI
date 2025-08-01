@@ -24,7 +24,8 @@ app.add_middleware(
 
 ragflow = RAGFlowClient()
 analysis_results = {}
-running_tasks = {}  # Store running tasks for cancellation
+running_tasks = {}  
+cancellation_events = {} 
 
 
 @app.get("/")
@@ -86,6 +87,10 @@ async def stop_analysis(task_id: str):
     if analysis_results[task_id]["status"] == "cancelled" or analysis_results[task_id]["status"] == "completed":
         return {"message": "Analysis already completed or cancelled"}
 
+    # Set cancellation event first to stop ongoing operations
+    if task_id in cancellation_events:
+        cancellation_events[task_id].set()
+        
     # Cancel the running task if it exists
     if task_id in running_tasks:
         task = running_tasks[task_id]
@@ -98,6 +103,10 @@ async def stop_analysis(task_id: str):
 
         # Clean up
         running_tasks.pop(task_id, None)
+        
+    # Clean up cancellation event
+    if task_id in cancellation_events:
+        cancellation_events.pop(task_id, None)
 
     # Update status
     start_time = analysis_results[task_id].get("start_time", time.time())
@@ -134,7 +143,12 @@ def add_status_message(result):
 
 async def analyze_document_async(task_id, file_path):
     """Async version of analyze_document_background for cancellation support"""
+    cancellation_event = None
     try:
+        # Create cancellation event for this task
+        cancellation_event = asyncio.Event()
+        cancellation_events[task_id] = cancellation_event
+        
         # Keep the original start_time when updating to processing
         start_time = analysis_results[task_id]["start_time"]
         analysis_results[task_id] = {
@@ -144,11 +158,11 @@ async def analyze_document_async(task_id, file_path):
 
         # Check if cancelled before starting
         if task_id in running_tasks and running_tasks[task_id].cancelled():
+            cancellation_event.set()
             return
 
-        # Run the analysis in a thread pool to avoid blocking
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, ragflow.analyze_document, file_path)
+        # Run the async analysis directly with cancellation support
+        result = await ragflow.analyze_document(file_path, cancellation_event)
 
         # Check if cancelled after analysis
         if task_id in running_tasks and running_tasks[task_id].cancelled():
@@ -184,9 +198,11 @@ async def analyze_document_async(task_id, file_path):
         except:
             pass
 
-        # Remove from running tasks
+        # Remove from running tasks and cancellation events
         if task_id in running_tasks:
             running_tasks.pop(task_id, None)
+        if task_id in cancellation_events:
+            cancellation_events.pop(task_id, None)
 
 
 async def upload_file(file):
@@ -221,6 +237,12 @@ def cleanup_old_results():
             if not task.done():
                 task.cancel()
             running_tasks.pop(task_id, None)
+            
+        # Set cancellation event and clean up
+        if task_id in cancellation_events:
+            cancellation_events[task_id].set()
+            cancellation_events.pop(task_id, None)
+            
         # Remove result
         analysis_results.pop(task_id, None)
         print(f"Cleaned up old result for task {task_id}")
