@@ -1,0 +1,66 @@
+{
+    "message": "File '20250124_PEA App CR_Requirement Spec_MFO.docx' uploaded and analyzed successfully.",
+    "test_checklist": [
+        {
+            "requirement": "MFO-001 ปรับการแสดงผลของงานที่เสร็จแล้วและเป็นงานที่เกินกำหนดให้แสดงรายการที่ด้านล่างของรายการงานทั้งหมด",
+            "testchecklist": [
+                "Verify that the display of completed and overdue tasks is correctly shown at the bottom of the task list.",
+                "Check if the system correctly handles and displays completed and overdue tasks.",
+                "Ensure that the system correctly filters and displays completed and overdue tasks.",
+                "Verify that the system correctly handles and displays completed and overdue tasks in the correct order.",
+                "Check if the system correctly handles and displays completed and overdue tasks with pagination if necessary."
+            ]
+        },
+        {
+            "requirement": "MFO-002 พัฒนาฟังก์ชันสำหรับนำเข้าและปรับปรุงข้อมูล PEANO สำหรับอุปกรณ์ 7 รายการ (งาน Mobile Edit)",
+            "testchecklist": [
+                "Verify that the system correctly imports and updates PEANO data for the 7 specified equipment items.",
+                "Check if the system correctly handles and displays the imported and updated PEANO data.",
+                "Ensure that the system correctly filters and displays the imported and updated PEANO data.",
+                "Verify that the system correctly handles and displays the imported and updated PEANO data in the correct order.",
+                "Check if the system correctly handles and displays the imported and updated PEANO data with pagination if necessary."
+            ]
+        },
+        {
+            "requirement": "MFO-003 สามารถนำเข้าและปรับปรุงข้อมูล Manhole, Handhole ได้",
+            "testchecklist": [
+                "Verify that the system correctly imports and updates Manhole and Handhole data.",
+                "Check if the system correctly handles and displays the imported and updated Manhole and Handhole data.",
+                "Ensure that the system correctly filters and displays the imported and updated Manhole and Handhole data.",
+                "Verify that the system correctly handles and displays the imported and updated Manhole and Handhole data in the correct order.",
+                "Check if the system correctly handles and displays the imported and updated Manhole and Handhole data with pagination if necessary."
+            ]
+        },
+        {
+            "requirement": "MFO-004 ปรับปรุงฟังก์ชันการแสดงผลให้การสำรวจ ที่ภาพแผนที่สามารถแสดงตำแหน่งปัจจุบันได้ (งาน Redlining)",
+            "testchecklist": [
+                "Verify that the system correctly displays the current location on the map during the survey process (Redlining).",
+                "Check if the system correctly handles and displays the current location on the map during the survey process.",
+                "Ensure that the system correctly filters and displays the current location on the map during the survey process.",
+                "Verify that the system correctly handles and displays the current location on the map during the survey process in the correct order.",
+                "Check if the system correctly handles and displays the current location on the map during the survey process with pagination if necessary."
+            ]
+        },
+        {
+            "requirement": "MFO-005 พัฒนาฟังก์ชันสำหรับนำเข้าข้อมูลโคมไฟฟ้าสาธารณะ เพื่อสนับสนุนงานลดค่าหน่วยสูญเสียในระบบไฟฟ้า ทางด้าน Non-Technical Loss",
+            "testchecklist": [
+                "Verify that the system correctly imports and updates data for public streetlights to support reducing non-technical losses in the electricity system.",
+                "Check if the system correctly handles and displays the imported and updated data for public streetlights.",
+                "Ensure that the system correctly filters and displays the imported and updated data for public streetlights.",
+                "Verify that the system correctly handles and displays the imported and updated data for public streetlights in the correct order.",
+                "Check if the system correctly handles and displays the imported and updated data for public streetlights with pagination if necessary."
+            ]
+        },
+        {
+            "requirement": "MFO-006 ปรับปรุงโปรแกรมประยุกต์ให้รองรับการใช้งานด้วย Protocol https",
+            "testchecklist": [
+                "Verify that the system correctly supports and communicates using the HTTPS protocol.",
+                "Check if the system correctly handles and displays data using the HTTPS protocol.",
+                "Ensure that the system correctly filters and displays data using the HTTPS protocol.",
+                "Verify that the system correctly handles and displays data using the HTTPS protocol in the correct order.",
+                "Check if the system correctly handles and displays data using the HTTPS protocol with pagination if necessary."
+            ]
+        }
+    ],
+    "file_name": "20250124_PEA App CR_Requirement Spec_MFO.docx"
+}

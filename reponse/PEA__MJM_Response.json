@@ -1,0 +1,51 @@
+{
+    "message": "File '20250124_PEA App CR_Requirement Spec_MJM.docx' uploaded and analyzed successfully.",
+    "test_checklist": [
+        {
+            "requirement": "MJM-001 พัฒนาโปรแกรม Back Office เพื่อปรับปรุงสัญลักษณ์ของชั้นข้อมูล DS_MVConductor ให้เหมือน Stored Display ของโปรแกรมประยุกต์ GIS Data Maintenance (DM) ได้",
+            "testchecklist": [
+                "Verify that the program Back Office successfully updates the symbols of the DS_MVConductor data class to match the Stored Display in the GIS Data Maintenance (DM) program.",
+                "Check if the program correctly displays the updated symbols in the GIS Data Maintenance (DM) program.",
+                "Ensure that the program Back Office can be used to manage and update the symbols of the DS_MVConductor data class.",
+                "Verify that the program Back Office can be used to manage and update the symbols of the DS_MVConductor data class in the GIS Data Maintenance (DM) program."
+            ]
+        },
+        {
+            "requirement": "MJM-002 พัฒนาฟังก์ชันสำหรับนำเข้าและปรับปรุงข้อมูล PEANO สำหรับอุปกรณ์ 7 รายการ ได้แก่",
+            "testchecklist": [
+                "Verify that the function can successfully import and update PEANO data for the 7 specified equipment items: DS_Switch, DS_HVSwitch, DS_HVCircuitBreaker, DS_Recloser, DS_Capacitor, DS_SwitchingFacility, and DS_VoltageRegulator.",
+                "Check if the function correctly updates the PEANO data for the specified equipment items.",
+                "Ensure that the function can handle and update the PEANO data for the 7 specified equipment items.",
+                "Verify that the function can handle and update the PEANO data for the 7 specified equipment items in the system."
+            ]
+        },
+        {
+            "requirement": "MJM-003 สามารถแสดงรายละเอียดการนำเข้าและปรับปรุงข้อมูล Manhole และ Handhole ได้",
+            "testchecklist": [
+                "Verify that the function can display the details of the import and update of Manhole and Handhole data.",
+                "Check if the function correctly displays the details of the import and update of Manhole and Handhole data.",
+                "Ensure that the function can display the details of the import and update of Manhole and Handhole data.",
+                "Verify that the function can display the details of the import and update of Manhole and Handhole data in the system."
+            ]
+        },
+        {
+            "requirement": "MJM-004 พัฒนาฟังก์ชันสำหรับแสดงข้อมูลการสำรวจโคมไฟฟ้าสาธารณะ เพื่อสนับสนุนงานลดค่าหน่วยสูญเสียในระบบไฟฟ้า ทางด้าน Non-Technical Loss ได้",
+            "testchecklist": [
+                "Verify that the function can display the data of street light surveys to support work in reducing non-technical loss in the electricity system.",
+                "Check if the function correctly displays the data of street light surveys.",
+                "Ensure that the function can display the data of street light surveys.",
+                "Verify that the function can display the data of street light surveys in the system."
+            ]
+        },
+        {
+            "requirement": "MJM-005 ปรับปรุงโปรแกรมประยุกต์ให้รองรับการใช้งานด้วย Protocol Https โดย กฟภ. จะเป็นผู้จัดเตรียมความพร้อมด้าน Infrastructure เช่น Certificate รวมถึงส่วนอื่นที่เกี่ยวข้อง เพื่อรองรับการปรับปรุงดังกล่าว",
+            "testchecklist": [
+                "Verify that the application can handle and support the use of Protocol Https.",
+                "Check if the application correctly supports the use of Protocol Https.",
+                "Ensure that the application can support the use of Protocol Https.",
+                "Verify that the application can support the use of Protocol Https in the system."
+            ]
+        }
+    ],
+    "file_name": "20250124_PEA App CR_Requirement Spec_MJM.docx"
+}

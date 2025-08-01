@@ -1,0 +1,60 @@
+{
+    "message": "File '20250326_PEA App CR_Requirement Spec_OT.docx' uploaded and analyzed successfully.",
+    "test_checklist": [
+        {
+            "requirement": "OT-001 ปรับปรุงเครื่องมือกำหนดจุดติดตั้งมิเตอร์ใหม่ กรณีที่ไม่มีมิเตอร์ข้างเคียง ให้สามารถกำหนดจุดอ้างอิงจากตำแหน่งสายไฟฟ้าแรงต่ำแทนได้",
+            "testchecklist": [
+                "Verify that the system allows users to set a new meter installation point using the position of low-voltage power cables when there is no adjacent meter.",
+                "Check if the system correctly identifies and uses the position of low-voltage power cables as a reference point for setting a new meter installation point.",
+                "Ensure that the system does not allow setting a new meter installation point without a valid reference point.",
+                "Test the system to ensure it does not allow setting a new meter installation point using a reference point that is not a low-voltage power cable position."
+            ]
+        },
+        {
+            "requirement": "OT-002 ปรับปรุงให้รองรับการขยายเขตระบบ 3 เฟส",
+            "testchecklist": [
+                "Verify that the system can handle and display data for a 3-phase expansion.",
+                "Check if the system correctly identifies and displays the 3-phase expansion in the user interface.",
+                "Ensure that the system does not display or handle data for a 3-phase expansion incorrectly.",
+                "Test the system to ensure it can handle and display data for a 3-phase expansion in various scenarios."
+            ]
+        },
+        {
+            "requirement": "OT-003 เพิ่มข้อมูลในเขต/นอกเขต/นิคมอุตสาหกรรม พร้อมรหัสนิคมอุตสาหกรรม และพื้นที่บริการ (SCS)",
+            "testchecklist": [
+                "Verify that the system can add data for areas within, outside, and industrial estates, including industrial estate codes and service areas (SCS).",
+                "Check if the system correctly identifies and displays the added data for areas within, outside, and industrial estates, including industrial estate codes and service areas (SCS).",
+                "Ensure that the system does not add or display incorrect data for areas within, outside, and industrial estates, including industrial estate codes and service areas (SCS).",
+                "Test the system to ensure it can add and display data for areas within, outside, and industrial estates, including industrial estate codes and service areas (SCS) in various scenarios."
+            ]
+        },
+        {
+            "requirement": "OT-004 ปรับปรุงให้รองรับการดึงมิเตอร์ทุกประเภทมิเตอร์ทั้งแรงสูง และแรงต่ำ (SCS)",
+            "testchecklist": [
+                "Verify that the system can retrieve data for all types of meters, including high and low voltage meters, in the SCS (System Control Station) format.",
+                "Check if the system correctly identifies and displays data for all types of meters, including high and low voltage meters, in the SCS format.",
+                "Ensure that the system does not display or handle data for all types of meters, including high and low voltage meters, incorrectly in the SCS format.",
+                "Test the system to ensure it can retrieve and display data for all types of meters, including high and low voltage meters, in the SCS format in various scenarios."
+            ]
+        },
+        {
+            "requirement": "OT-005 ปรับปรุงโปรแกรมประยุกต์ให้รองรับการใช้งานด้วย Protocol https",
+            "testchecklist": [
+                "Verify that the system can handle and display data using the HTTPS protocol.",
+                "Check if the system correctly identifies and displays data using the HTTPS protocol.",
+                "Ensure that the system does not display or handle data using the HTTPS protocol incorrectly.",
+                "Test the system to ensure it can handle and display data using the HTTPS protocol in various scenarios."
+            ]
+        },
+        {
+            "requirement": "OT-006 Classify Symbol สายแรงต่ำแยกตามเฟสเหมือน OPSA ซึ่งจะมีผลกับ OT ด้วย",
+            "testchecklist": [
+                "Verify that the system can classify symbols for low-voltage lines by phase, similar to OPSA, and this classification will affect OT.",
+                "Check if the system correctly identifies and displays the classification of low-voltage lines by phase, similar to OPSA, and this classification will affect OT.",
+                "Ensure that the system does not classify or display low-voltage lines by phase, similar to OPSA, incorrectly, and this classification does not affect OT.",
+                "Test the system to ensure it can classify and display low-voltage lines by phase, similar to OPSA, and this classification will affect OT in various scenarios."
+            ]
+        }
+    ],
+    "file_name": "20250326_PEA App CR_Requirement Spec_OT.docx"
+}

@@ -435,7 +435,7 @@ class RAGFlowClient:
                         "testchecklist": _testchecklist
                     })
 
-            print("✅ Test checklist generated successfully")
+            print("✅ All Test checklist generated successfully")
             return testchecklist
         except Exception as e:
             print(f"❌ Error generating test checklist: {e}")

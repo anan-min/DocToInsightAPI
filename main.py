@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
@@ -35,14 +35,16 @@ async def root():
 @app.post("/main")
 async def main(
     file: UploadFile = File(...),
-    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     try:
         file_name, file_path = await upload_file(file)
 
         task_id = str(uuid.uuid4())
+        start_time = time.time()
         analysis_results[task_id] = {
-            "status": "pending", "timestamp": time.time()}
+            "status": "pending",
+            "start_time": start_time
+        }
 
         if len(analysis_results) > 100:
             cleanup_old_results()
@@ -81,6 +83,9 @@ async def stop_analysis(task_id: str):
     if task_id not in analysis_results:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    if analysis_results[task_id]["status"] == "cancelled" or analysis_results[task_id]["status"] == "completed":
+        return {"message": "Analysis already completed or cancelled"}
+
     # Cancel the running task if it exists
     if task_id in running_tasks:
         task = running_tasks[task_id]
@@ -95,9 +100,11 @@ async def stop_analysis(task_id: str):
         running_tasks.pop(task_id, None)
 
     # Update status
+    start_time = analysis_results[task_id].get("start_time", time.time())
     analysis_results[task_id]["status"] = "cancelled"
     analysis_results[task_id]["message"] = "Analysis was cancelled by user"
-    analysis_results[task_id]["timestamp"] = time.time()
+    analysis_results[task_id]["start_time"] = start_time
+    analysis_results[task_id]["end_time"] = time.time()  # Track when cancelled
 
     return {"message": "Analysis cancelled successfully"}
 
@@ -114,12 +121,26 @@ def add_status_message(result):
     elif result["status"] == "cancelled":
         result["message"] = "Analysis was cancelled"
 
+    # Calculate processing time from start_time
+    if "start_time" in result:
+        if result["status"] in ["completed", "failed", "cancelled"] and "end_time" in result:
+            # Use the actual completion time for finished tasks
+            processing_time = result["end_time"] - result["start_time"]
+        else:
+            # Use current time for ongoing tasks
+            processing_time = time.time() - result["start_time"]
+        result["processing_time"] = round(processing_time, 2)
+
 
 async def analyze_document_async(task_id, file_path):
     """Async version of analyze_document_background for cancellation support"""
     try:
+        # Keep the original start_time when updating to processing
+        start_time = analysis_results[task_id]["start_time"]
         analysis_results[task_id] = {
-            "status": "processing", "timestamp": time.time()}
+            "status": "processing",
+            "start_time": start_time  # Preserve original start time
+        }
 
         # Check if cancelled before starting
         if task_id in running_tasks and running_tasks[task_id].cancelled():
@@ -134,15 +155,28 @@ async def analyze_document_async(task_id, file_path):
             return
 
         analysis_results[task_id] = {
-            "status": "completed", "result": result, "timestamp": time.time()}
+            "status": "completed",
+            "result": result,
+            "start_time": start_time,
+            "end_time": time.time()  # Track completion time
+        }
 
     except asyncio.CancelledError:
+        start_time = analysis_results[task_id]["start_time"]
         analysis_results[task_id] = {
-            "status": "cancelled", "timestamp": time.time()}
+            "status": "cancelled",
+            "start_time": start_time,
+            "end_time": time.time()  # Track cancellation time
+        }
         raise  # Re-raise to properly handle cancellation
     except Exception as e:
+        start_time = analysis_results[task_id]["start_time"]
         analysis_results[task_id] = {
-            "status": "failed", "error": str(e), "timestamp": time.time()}
+            "status": "failed",
+            "error": str(e),
+            "start_time": start_time,
+            "end_time": time.time()  # Track failure time
+        }
     finally:
         # Clean up the temporary file and running task reference
         try:
@@ -152,13 +186,13 @@ async def analyze_document_async(task_id, file_path):
 
         # Remove from running tasks
         if task_id in running_tasks:
-            del running_tasks[task_id]
+            running_tasks.pop(task_id, None)
 
 
 async def upload_file(file):
     if not file or (not file.filename.endswith('.docx') and not file.filename.endswith('.doc')):
         raise HTTPException(
-            status_code=400, detail="Invalid file type. Please upload a PDF file.")
+            status_code=400, detail="Invalid file type. Please upload a doc file.")
     file_content = await file.read()
     file_name = file.filename
     print(f"Received file: {file_name}")
@@ -177,7 +211,7 @@ def cleanup_old_results():
     current_time = time.time()
     to_remove = []
     for task_id, result in analysis_results.items():
-        if current_time - result.get("timestamp", 0) > 3600:  # 1 hour
+        if current_time - result.get("start_time", 0) > 3600:  # 1 hour
             to_remove.append(task_id)
 
     for task_id in to_remove:
@@ -186,16 +220,16 @@ def cleanup_old_results():
             task = running_tasks[task_id]
             if not task.done():
                 task.cancel()
-            del running_tasks[task_id]
-
+            running_tasks.pop(task_id, None)
         # Remove result
-        del analysis_results[task_id]
+        analysis_results.pop(task_id, None)
         print(f"Cleaned up old result for task {task_id}")
 
 
 app.add_api_route("/", root, methods=["GET"])
 app.add_api_route("/main", main, methods=["POST"])
 app.add_api_route("/status/{task_id}", get_analysis_results, methods=["GET"])
+app.add_api_route("/stop/{task_id}", stop_analysis, methods=["PUT"])
 
 
 if __name__ == "__main__":

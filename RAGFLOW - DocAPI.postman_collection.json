@@ -1,0 +1,540 @@
+{
+	"info": {
+		"_postman_id": "c542028f-d04b-4699-a5bc-e2acde387260",
+		"name": "RAGFLOW / DocAPI",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "18938140"
+	},
+	"item": [
+		{
+			"name": "documents",
+			"item": [
+				{
+					"name": "List Documents",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/datasets/{{dataset_id}}/documents",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"datasets",
+								"{{dataset_id}}",
+								"documents"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Parse Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"document_ids\": [\"{{document_id}}\"]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/datasets/{{dataset_id}}/chunks",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"datasets",
+								"{{dataset_id}}",
+								"chunks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upload Document",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": [
+										"/C:/Users/User/Desktop/REQ_Spec/20250124_PEA App CR_Requirement Spec_MFO.docx",
+										"/C:/Users/User/Desktop/REQ_Spec/20250124_PEA App CR_Requirement Spec_MFO.docx"
+									]
+								}
+							]
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/datasets/{{dataset_id}}/documents",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"datasets",
+								"{{dataset_id}}",
+								"documents"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "chat",
+			"item": [
+				{
+					"name": "List Chat Assistants",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/chats",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Chat Assitant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"dataset_ids\": [\"{{dataset_id}}\"],\r\n    \"prompt\": {\r\n       \"similarity_threshold\": 0.2, \r\n       \"keywords_similarity_weight\": 0.5\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/chats/{{chat_id}}",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chats",
+								"{{chat_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Chat Completion",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"question\": \"List the functional requirements found in {{document_name}} in  this fomat [ 'requirement1', requirement2', requirement3' ]\",\r\n    \"stream\": false,\r\n    \"session_id\":\"{{session_id}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/chats/{{chat_id}}/completions",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chats",
+								"{{chat_id}}",
+								"completions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Chat Session",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"session {{$timestamp}}\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/chats/{{chat_id}}/sessions",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chats",
+								"{{chat_id}}",
+								"sessions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Chat Assistant",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"dataset_ids\": [],\r\n    \"name\":\"chat_{{$timestamp}}\",\r\n    \"prompt\": {\r\n       \"similarity_threshold\": 0.2, \r\n       \"keywords_similarity_weight\": 0.5\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/chats",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chats"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "dataset",
+			"item": [
+				{
+					"name": "List Dataset",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"pdfToInsight\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/datasets",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"datasets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create New Dataset",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "ragflow-MzMzFlODVlNmQ0MTExZjBhODhkOGFhNz",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"pdfToInsight\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{RAGFLOW}}/api/v1/datasets",
+							"host": [
+								"{{RAGFLOW}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"datasets"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "DocAPI",
+			"item": [
+				{
+					"name": "API root",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{DocAPI}}/",
+							"host": [
+								"{{DocAPI}}"
+							],
+							"path": [
+								""
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "API main",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/User/Desktop/REQ_Spec/20250124_PEA App CR_Requirement Spec_MFO.docx"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{DocAPI}}/main",
+							"host": [
+								"{{DocAPI}}"
+							],
+							"path": [
+								"main"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "API status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{DocAPI}}/status/{{task_id}}",
+							"host": [
+								"{{DocAPI}}"
+							],
+							"path": [
+								"status",
+								"{{task_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "API stop",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{DocAPI}}/stop/{{task_id}}",
+							"host": [
+								"{{DocAPI}}"
+							],
+							"path": [
+								"stop",
+								"{{task_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "RAGFLOW",
+			"value": "http://localhost:9380",
+			"type": "default"
+		},
+		{
+			"key": "dataset_id",
+			"value": "1629aa2a6cf611f08399968c9561210e",
+			"type": "default"
+		},
+		{
+			"key": "document_id",
+			"value": "b820ec846cf711f0966b968c9561210e",
+			"type": "default"
+		},
+		{
+			"key": "chat_id",
+			"value": "00677f346d1711f08d728e5d69e84a39",
+			"type": "default"
+		},
+		{
+			"key": "session_id",
+			"value": "c8f925106d1711f0ab898e5d69e84a39",
+			"type": "default"
+		},
+		{
+			"key": "document_name",
+			"value": "20250124_PEA App CR_Requirement Spec_MFO.docx",
+			"type": "default"
+		},
+		{
+			"key": "PdfAPI",
+			"value": "http://localhost:4444",
+			"type": "default"
+		},
+		{
+			"key": "DocAPI",
+			"value": "PdfAPI",
+			"type": "default"
+		},
+		{
+			"key": "task_id",
+			"value": "0e80fad3-db64-4d7c-a5e8-7dc144ee44ab",
+			"type": "default"
+		}
+	]
+}
