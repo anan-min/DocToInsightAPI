@@ -5,9 +5,13 @@ import os
 import requests
 from prompt import FUNCTIONAL_REQUIREMENTS_PROMPT, TEST_CHECKLIST_PROMPT
 from helper import parse_chat_completion_result
-import threading
+import random
 
-RAGFLOW_API_KEY = "ragflow-RiODZiZTFjNmRkYjExZjA5NjMzNTI4MW"
+# retries mechanism for chat completion
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 1
+
+RAGFLOW_API_KEY = "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz"
 BASE_URL = "http://localhost:9380"
 PARSED = "1"
 
@@ -234,6 +238,24 @@ class RAGFlowClient:
             print(f"❌ Error creating chat session: {e}")
             raise
 
+    # retry function
+    @staticmethod
+    async def async_retry(fn, *args, retries=MAX_RETRIES, base_delay=RETRY_BASE_DELAY, **kwargs):
+        for attempt in range(1, retries + 1):
+            try:
+                return await fn(*args, **kwargs)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                if attempt == retries:
+                    print(f"❌ Final attempt failed: {e}")
+                    raise
+                delay = base_delay * (2 ** (attempt - 1)) + \
+                    random.uniform(0, 0.5)
+                print(
+                    f"⚠️ Attempt {attempt} failed. Retrying in {delay:.2f}s...")
+                await asyncio.sleep(delay)
+
     # use chat session created to get chat completion
     async def chat_completion(self, session_id, question, cancellation_event=None):
         """
@@ -246,15 +268,14 @@ class RAGFlowClient:
             "session_id":"{{session_id}}"
         }'
         """
-        # create chat competion with session id and chat assistant id
-        url = f"{BASE_URL}{CREATE_CHAT_COMPLETION.format(chat_id=self.chat_id)}"
-        payload = {
-            "question": question,
-            "session_id": session_id,
-            "stream": False
-        }
-
-        try:
+        # pass chat request to async_retry to apply retries mechanism
+        async def _chat_request():
+            url = f"{BASE_URL}{CREATE_CHAT_COMPLETION.format(chat_id=self.chat_id)}"
+            payload = {
+                "question": question,
+                "session_id": session_id,
+                "stream": False
+            }
             async with aiohttp.ClientSession() as session:
                 if cancellation_event and cancellation_event.is_set():
                     raise asyncio.CancelledError("Operation cancelled")
@@ -265,16 +286,12 @@ class RAGFlowClient:
 
                     if result.get("code") == 0:
                         data = result.get("data", {})
-                        answer = data.get("answer", "")
-                        return answer
+                        return data.get("answer", "")
                     else:
                         raise Exception(
                             f"Failed to get chat completion: {result.get('message')}")
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            print(f"❌ Error in chat completion: {e}")
-            raise
+
+        return await RAGFlowClient.async_retry(_chat_request)
 
     async def upload_document(self, dataset_id: str, file_path: str, cancellation_event=None):
         """
