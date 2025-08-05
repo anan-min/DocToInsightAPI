@@ -302,4 +302,5 @@ app.add_api_route("/stop/{task_id}", stop_analysis, methods=["POST"])
 
 
 if __name__ == "__main__":
+    print("Server started on http://localhost:4444")
     uvicorn.run(app, host="0.0.0.0", port=4444)
