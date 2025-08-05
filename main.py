@@ -65,7 +65,8 @@ async def main(
         start_time = time.time()
         analysis_results[task_id] = {
             "status": "pending",
-            "start_time": start_time
+            "start_time": start_time,
+            "progress": "Analysis queued for processing"
         }
 
         if len(analysis_results) > 100:
@@ -129,14 +130,23 @@ async def stop_analysis(task_id: str):
     if task_id in cancellation_events:
         cancellation_events.pop(task_id, None)
 
-    # Update status
+    # Update status with detailed cancellation info
     start_time = analysis_results[task_id].get("start_time", time.time())
+    current_progress = analysis_results[task_id].get(
+        "progress", "Analysis in progress")
     analysis_results[task_id]["status"] = "cancelled"
-    analysis_results[task_id]["message"] = "Analysis was cancelled by user"
+    analysis_results[task_id]["message"] = f"Analysis cancelled during: {current_progress}"
     analysis_results[task_id]["start_time"] = start_time
     analysis_results[task_id]["end_time"] = time.time()  # Track when cancelled
+    analysis_results[task_id]["progress"] = "Analysis cancelled by user request"
 
     return {"message": "Analysis cancelled successfully"}
+
+
+def update_progress(task_id, message):
+    """Update progress for a specific task"""
+    if task_id in analysis_results:
+        analysis_results[task_id]["progress"] = message
 
 
 def add_status_message(result):
@@ -147,9 +157,12 @@ def add_status_message(result):
     elif result["status"] == "completed":
         result["message"] = "Analysis completed successfully"
     elif result["status"] == "failed":
-        result["message"] = "Analysis failed"
+        error_detail = result.get("error", "Unknown error")
+        result["message"] = f"Analysis failed: {error_detail}"
     elif result["status"] == "cancelled":
-        result["message"] = "Analysis was cancelled"
+        # Keep the detailed cancellation message from stop_analysis
+        if "message" not in result or result["message"] == "Analysis was cancelled":
+            result["message"] = "Analysis was cancelled by user"
 
     # Calculate processing time from start_time
     if "start_time" in result:
@@ -174,7 +187,8 @@ async def analyze_document_async(task_id, file_path):
         start_time = analysis_results[task_id]["start_time"]
         analysis_results[task_id] = {
             "status": "processing",
-            "start_time": start_time  # Preserve original start time
+            "start_time": start_time,  # Preserve original start time
+            "progress": "Initializing document analysis"
         }
 
         # Check if cancelled before starting
@@ -183,7 +197,8 @@ async def analyze_document_async(task_id, file_path):
             return
 
         # Run the async analysis directly with cancellation support
-        result = await ragflow.analyze_document(file_path, cancellation_event)
+        result = await ragflow.analyze_document(file_path, cancellation_event,
+                                                progress_callback=lambda msg: update_progress(task_id, msg))
 
         # Check if cancelled after analysis
         if task_id in running_tasks and running_tasks[task_id].cancelled():
@@ -193,24 +208,35 @@ async def analyze_document_async(task_id, file_path):
             "status": "completed",
             "result": result,
             "start_time": start_time,
-            "end_time": time.time()  # Track completion time
+            "end_time": time.time(),  # Track completion time
+            "progress": "Analysis completed successfully"
         }
 
     except asyncio.CancelledError:
         start_time = analysis_results[task_id]["start_time"]
+        current_progress = analysis_results[task_id].get(
+            "progress", "Analysis in progress")
         analysis_results[task_id] = {
             "status": "cancelled",
             "start_time": start_time,
-            "end_time": time.time()  # Track cancellation time
+            "end_time": time.time(),  # Track cancellation time
+            "progress": f"{current_progress}",
+            "message": f"Analysis cancelled during: {current_progress}"
         }
         raise  # Re-raise to properly handle cancellation
     except Exception as e:
         start_time = analysis_results[task_id]["start_time"]
+        current_progress = analysis_results[task_id].get(
+            "progress", "Analysis in progress")
+        error_msg = str(e)
         analysis_results[task_id] = {
             "status": "failed",
-            "error": str(e),
+            "error": error_msg,
             "start_time": start_time,
-            "end_time": time.time()  # Track failure time
+            "end_time": time.time(),  # Track failure time
+            "progress": f"Failed during: {current_progress} - {error_msg}",
+            "message": f"Analysis failed during: {current_progress}",
+            "failure_stage": current_progress
         }
     finally:
         # Clean up the temporary file and running task reference
