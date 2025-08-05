@@ -1,5 +1,6 @@
 fastapi
 uvicorn
 aiohttp
+requests
 python-multipart
 requests

@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import os
 import requests
+from requests.exceptions import ConnectionError, RequestException
 from prompt import FUNCTIONAL_REQUIREMENTS_PROMPT, TEST_CHECKLIST_PROMPT
 from helper import parse_chat_completion_result
 import random
@@ -12,7 +13,8 @@ MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1
 
 RAGFLOW_API_KEY = "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz"
-BASE_URL = "http://localhost:9380"
+RAGFLOW_API_KEY = "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz"
+BASE_URL = os.getenv("RAGFLOW_BASE_URL", "http://localhost:9380")
 PARSED = "1"
 
 # RAGFLOW ENDPOINT
@@ -70,11 +72,11 @@ class RAGFlowClient:
     def initialize(self):
         dataset_id = self.create_dataset()
         chat_id = self.create_chat_assistant()
-
         self.dataset_id = dataset_id
         self.chat_id = chat_id
 
     # upload and parse document then analyze data
+
     async def analyze_document(self, file_path, cancellation_event=None):
         if cancellation_event and cancellation_event.is_set():
             raise asyncio.CancelledError("Operation cancelled before starting")
@@ -149,11 +151,14 @@ class RAGFlowClient:
                 print(f"✅ Dataset created: {self.dataset_id}")
                 return dataset_info['id']
             else:
-                raise Exception(
-                    f"Failed to create dataset: {result.get('message')}")
-        except Exception as e:
-            print(f"❌ Error creating dataset: {e}")
-            raise Exception("Failed to create dataset")
+                print("❌ You need to start the RAGFlow server first.")
+                raise Exception("You need to start the RAGFlow server first.")
+        except (ConnectionError, RequestException):
+            print("❌ You need to start the RAGFlow server first.")
+            raise Exception("You need to start the RAGFlow server first.")
+        except Exception:
+            print("❌ You need to start the RAGFlow server first.")
+            raise Exception("You need to start the RAGFlow server first.")
 
     # template done fix the payload accordingly
     def create_chat_assistant(self):
@@ -196,6 +201,9 @@ class RAGFlowClient:
                 raise Exception(
                     f"Failed to create chat assistant: {result.get('message')}")
 
+        except (ConnectionError, RequestException):
+            print("❌ You need to start the RAGFlow server first.")
+            raise Exception("You need to start the RAGFlow server first.")
         except Exception as e:
             print(f"❌ Error creating chat assistant: {e}")
             raise Exception("Failed to create chat assistant")

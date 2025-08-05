@@ -22,7 +22,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-ragflow = RAGFlowClient()
+# Initialize RAGFlow client with error handling
+try:
+    ragflow = RAGFlowClient()
+    ragflow_available = True
+except Exception as e:
+    raise Exception(f"❌ RAGFlow server is not available: {e}")
+
+
 analysis_results = {}
 running_tasks = {}
 cancellation_events = {}
@@ -30,13 +37,28 @@ cancellation_events = {}
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to document analysis API. Please upload a document file."}
+    if not ragflow_available:
+        return {
+            "message": "❌ You need to start the RAGFlow server first.",
+            "status": "error",
+            "ragflow_available": False
+        }
+    return {
+        "message": "Welcome to document analysis API. Please upload a document file.",
+        "ragflow_available": True
+    }
 
 
 @app.post("/main")
 async def main(
     file: UploadFile = File(...),
 ):
+    if not ragflow_available:
+        raise HTTPException(
+            status_code=503,
+            detail="❌ You need to start the RAGFlow server first."
+        )
+
     try:
         file_name, file_path = await upload_file(file)
 
