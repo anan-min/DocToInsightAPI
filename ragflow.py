@@ -3,12 +3,26 @@ import aiohttp
 import asyncio
 import os
 import requests
+from requests.exceptions import ConnectionError, RequestException
 from prompt import FUNCTIONAL_REQUIREMENTS_PROMPT, TEST_CHECKLIST_PROMPT
 from helper import parse_chat_completion_result
-import threading
+import random
 
-RAGFLOW_API_KEY = "ragflow-RiODZiZTFjNmRkYjExZjA5NjMzNTI4MW"
-BASE_URL = "http://localhost:9380"
+# retries mechanism for chat completion
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 1
+
+# Get API key from environment variable, with fallback to hardcoded key for development
+RAGFLOW_API_KEY = os.getenv("RAGFLOW_API_KEY", "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz")
+BASE_URL = os.getenv("RAGFLOW_BASE_URL", "http://localhost:9380")
+
+# Validate API key is provided
+if not RAGFLOW_API_KEY or RAGFLOW_API_KEY.strip() == "":
+    print("❌ RAGFLOW_API_KEY environment variable is required.")
+    print("Usage:")
+    print("  Docker: docker run -e RAGFLOW_API_KEY='your-key-here' -p 4444:4444 doctoinsight-api")
+    print("  Python: RAGFLOW_API_KEY='your-key-here' python main.py")
+    raise SystemExit(1)
 PARSED = "1"
 
 # RAGFLOW ENDPOINT
@@ -66,15 +80,18 @@ class RAGFlowClient:
     def initialize(self):
         dataset_id = self.create_dataset()
         chat_id = self.create_chat_assistant()
-
         self.dataset_id = dataset_id
         self.chat_id = chat_id
 
     # upload and parse document then analyze data
-    async def analyze_document(self, file_path, cancellation_event=None):
+
+    async def analyze_document(self, file_path, cancellation_event=None, progress_callback=None):
         if cancellation_event and cancellation_event.is_set():
             raise asyncio.CancelledError("Operation cancelled before starting")
 
+        if progress_callback:
+            progress_callback("Uploading document to RAGFlow")
+        
         document_info = await self.upload_document(self.dataset_id, file_path, cancellation_event)
         if not document_info:
             raise Exception("Failed to upload document")
@@ -85,7 +102,14 @@ class RAGFlowClient:
         if cancellation_event and cancellation_event.is_set():
             raise asyncio.CancelledError("Operation cancelled after upload")
 
+        if progress_callback:
+            progress_callback("Parsing document content")
+        
         await self.parse_document(document_id, cancellation_event)
+        
+        if progress_callback:
+            progress_callback("Waiting for document parsing to complete")
+        
         await self.wait_for_parsing_complete(self.dataset_id, document_id, cancellation_event)
 
         if cancellation_event and cancellation_event.is_set():
@@ -99,7 +123,14 @@ class RAGFlowClient:
             raise asyncio.CancelledError(
                 "Operation cancelled after chat assistant update")
 
+        if progress_callback:
+            progress_callback("Creating chat session")
+        
         session_id = await self.create_chat_session(cancellation_event)
+        
+        if progress_callback:
+            progress_callback("Extracting functional requirements")
+        
         functional_requirements_list = await self.get_functional_requirements(
             session_id, document_name, cancellation_event
         )
@@ -109,12 +140,19 @@ class RAGFlowClient:
             raise asyncio.CancelledError(
                 "Operation cancelled after getting functional requirements")
 
+        if progress_callback:
+            progress_callback("Generating test checklist")
+        
         test_checklist = await self.generate_test_checklist(
             session_id,
             functional_requirements_list,
             document_name,
-            cancellation_event
+            cancellation_event,
+            progress_callback
         )
+        if progress_callback:
+            progress_callback("Finalizing analysis results")
+        
         return test_checklist
 
     # create dataset for upload the document and update dataset id
@@ -145,11 +183,31 @@ class RAGFlowClient:
                 print(f"✅ Dataset created: {self.dataset_id}")
                 return dataset_info['id']
             else:
-                raise Exception(
-                    f"Failed to create dataset: {result.get('message')}")
+                error_msg = result.get('message', 'Unknown error')
+                if 'authentication' in error_msg.lower() or 'unauthorized' in error_msg.lower():
+                    print("❌ Invalid RAGFlow API key. Please check your API key.")
+                    raise Exception("Invalid RAGFlow API key. Please check your API key.")
+                else:
+                    print(f"❌ RAGFlow API error: {error_msg}")
+                    raise Exception(f"RAGFlow API error: {error_msg}")
+        except (ConnectionError, RequestException):
+            print("❌ You need to start the RAGFlow server first.")
+            raise Exception("You need to start the RAGFlow server first.")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                print("❌ Invalid RAGFlow API key. Please check your API key.")
+                raise Exception("Invalid RAGFlow API key. Please check your API key.")
+            elif e.response.status_code == 403:
+                print("❌ Access forbidden. Please check your RAGFlow API key permissions.")
+                raise Exception("Access forbidden. Please check your RAGFlow API key permissions.")
+            else:
+                print(f"❌ RAGFlow server error: HTTP {e.response.status_code}")
+                raise Exception(f"RAGFlow server error: HTTP {e.response.status_code}")
         except Exception as e:
-            print(f"❌ Error creating dataset: {e}")
-            raise Exception("Failed to create dataset")
+            if "Invalid RAGFlow API key" in str(e) or "Access forbidden" in str(e) or "RAGFlow API error" in str(e):
+                raise  # Re-raise specific errors without modification
+            print("❌ You need to start the RAGFlow server first.")
+            raise Exception("You need to start the RAGFlow server first.")
 
     # template done fix the payload accordingly
     def create_chat_assistant(self):
@@ -192,7 +250,22 @@ class RAGFlowClient:
                 raise Exception(
                     f"Failed to create chat assistant: {result.get('message')}")
 
+        except (ConnectionError, RequestException):
+            print("❌ You need to start the RAGFlow server first.")
+            raise Exception("You need to start the RAGFlow server first.")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                print("❌ Invalid RAGFlow API key. Please check your API key.")
+                raise Exception("Invalid RAGFlow API key. Please check your API key.")
+            elif e.response.status_code == 403:
+                print("❌ Access forbidden. Please check your RAGFlow API key permissions.")
+                raise Exception("Access forbidden. Please check your RAGFlow API key permissions.")
+            else:
+                print(f"❌ RAGFlow server error: HTTP {e.response.status_code}")
+                raise Exception(f"RAGFlow server error: HTTP {e.response.status_code}")
         except Exception as e:
+            if "Invalid RAGFlow API key" in str(e) or "Access forbidden" in str(e):
+                raise  # Re-raise specific errors without modification
             print(f"❌ Error creating chat assistant: {e}")
             raise Exception("Failed to create chat assistant")
 
@@ -231,8 +304,31 @@ class RAGFlowClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"❌ Error creating chat session: {e}")
-            raise
+            error_msg = str(e)
+            if "timeout" in error_msg.lower():
+                print(f"❌ Timeout creating chat session: {error_msg}")
+                raise Exception("Chat session creation timed out. Please try again.")
+            else:
+                print(f"❌ Error creating chat session: {error_msg}")
+                raise Exception(f"Failed to create chat session: {error_msg}")
+
+    # retry function
+    @staticmethod
+    async def async_retry(fn, *args, retries=MAX_RETRIES, base_delay=RETRY_BASE_DELAY, **kwargs):
+        for attempt in range(1, retries + 1):
+            try:
+                return await fn(*args, **kwargs)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                if attempt == retries:
+                    print(f"❌ Final attempt failed after {retries} retries: {e}")
+                    raise Exception(f"Operation failed after {retries} attempts: {str(e)}")
+                delay = base_delay * (2 ** (attempt - 1)) + \
+                    random.uniform(0, 0.5)
+                print(
+                    f"⚠️ Attempt {attempt}/{retries} failed: {str(e)[:100]}... Retrying in {delay:.2f}s...")
+                await asyncio.sleep(delay)
 
     # use chat session created to get chat completion
     async def chat_completion(self, session_id, question, cancellation_event=None):
@@ -246,15 +342,14 @@ class RAGFlowClient:
             "session_id":"{{session_id}}"
         }'
         """
-        # create chat competion with session id and chat assistant id
-        url = f"{BASE_URL}{CREATE_CHAT_COMPLETION.format(chat_id=self.chat_id)}"
-        payload = {
-            "question": question,
-            "session_id": session_id,
-            "stream": False
-        }
-
-        try:
+        # pass chat request to async_retry to apply retries mechanism
+        async def _chat_request():
+            url = f"{BASE_URL}{CREATE_CHAT_COMPLETION.format(chat_id=self.chat_id)}"
+            payload = {
+                "question": question,
+                "session_id": session_id,
+                "stream": False
+            }
             async with aiohttp.ClientSession() as session:
                 if cancellation_event and cancellation_event.is_set():
                     raise asyncio.CancelledError("Operation cancelled")
@@ -265,16 +360,12 @@ class RAGFlowClient:
 
                     if result.get("code") == 0:
                         data = result.get("data", {})
-                        answer = data.get("answer", "")
-                        return answer
+                        return data.get("answer", "")
                     else:
                         raise Exception(
                             f"Failed to get chat completion: {result.get('message')}")
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            print(f"❌ Error in chat completion: {e}")
-            raise
+
+        return await RAGFlowClient.async_retry(_chat_request)
 
     async def upload_document(self, dataset_id: str, file_path: str, cancellation_event=None):
         """
@@ -333,7 +424,13 @@ class RAGFlowClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"❌ Error uploading document: {str(e)}")
+            error_msg = str(e)
+            if "timeout" in error_msg.lower():
+                print(f"❌ Document upload timed out: {error_msg}")
+            elif "connection" in error_msg.lower():
+                print(f"❌ Network error during document upload: {error_msg}")
+            else:
+                print(f"❌ Error uploading document: {error_msg}")
             return None
 
     def is_document_exist(self, dataset_id, file_path):
@@ -370,8 +467,13 @@ class RAGFlowClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"❌ Error starting document parsing: {e}")
-            return False
+            error_msg = str(e)
+            if "timeout" in error_msg.lower():
+                print(f"❌ Timeout starting document parsing: {error_msg}")
+                raise Exception("Document parsing start timed out. Please try again.")
+            else:
+                print(f"❌ Error starting document parsing: {error_msg}")
+                raise Exception(f"Failed to start document parsing: {error_msg}")
 
     async def wait_for_parsing_complete(self, dataset_id: str, document_id: str, cancellation_event=None, timeout=600):
         # list documents and check status every 5 seconds until status is complete
@@ -415,11 +517,17 @@ class RAGFlowClient:
             except asyncio.CancelledError:
                 raise
             except Exception as e:
-                print(f"❌ Error checking parsing status: {e}")
+                error_msg = str(e)
+                if "timeout" in error_msg.lower():
+                    print(f"❌ Timeout checking parsing status: {error_msg}")
+                elif "connection" in error_msg.lower():
+                    print(f"❌ Network error checking parsing status: {error_msg}")
+                else:
+                    print(f"❌ Error checking parsing status: {error_msg}")
                 await asyncio.sleep(5)
 
-        print("❌ Document parsing timed out")
-        return False
+        print(f"❌ Document parsing timed out after {timeout} seconds")
+        raise Exception(f"Document parsing timed out after {timeout} seconds. Please try again or contact support.")
 
     async def get_functional_requirements(self, session_id, document_name, cancellation_event=None):
         """
@@ -457,11 +565,19 @@ class RAGFlowClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"❌ Error getting functional requirements: {e}")
-            raise
+            error_msg = str(e)
+            if "timeout" in error_msg.lower():
+                print(f"❌ Timeout while extracting functional requirements: {error_msg}")
+                raise Exception("Functional requirements extraction timed out. Please try again.")
+            elif "no relevant content" in error_msg.lower():
+                print(f"❌ No functional requirements found in document: {error_msg}")
+                raise Exception("No functional requirements found in the uploaded document.")
+            else:
+                print(f"❌ Error getting functional requirements: {error_msg}")
+                raise Exception(f"Failed to extract functional requirements: {error_msg}")
 
     # ask the chat assistant to generate test checklist based on functional requirements each requirement are one chat completion
-    async def generate_test_checklist(self, session_id, functional_requirements, document_name, cancellation_event=None):
+    async def generate_test_checklist(self, session_id, functional_requirements, document_name, cancellation_event=None, progress_callback=None):
         """
         document_name: {document_name}
 
@@ -479,12 +595,16 @@ class RAGFlowClient:
         ]
         """
         testchecklist = []
+        total_requirements = len(functional_requirements)
         try:
-            for requirement in functional_requirements:
+            for i, requirement in enumerate(functional_requirements):
                 if cancellation_event and cancellation_event.is_set():
                     raise asyncio.CancelledError(
                         "Operation cancelled during test checklist generation")
 
+                if progress_callback:
+                    progress_callback(f"Generating test checklist ({i+1}/{total_requirements}): {requirement[:50]}...")
+                
                 print(
                     f"📋 Generating test checklist for requirement: {requirement}")
                 chat_completion = await self.chat_completion(
@@ -514,8 +634,16 @@ class RAGFlowClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"❌ Error generating test checklist: {e}")
-            raise
+            error_msg = str(e)
+            if "timeout" in error_msg.lower():
+                print(f"❌ Timeout while generating test checklist: {error_msg}")
+                raise Exception("Test checklist generation timed out. Please try again.")
+            elif "no relevant content" in error_msg.lower():
+                print(f"❌ Could not generate test checklist: {error_msg}")
+                raise Exception("Could not generate test checklist from the functional requirements.")
+            else:
+                print(f"❌ Error generating test checklist: {error_msg}")
+                raise Exception(f"Failed to generate test checklist: {error_msg}")
 
     async def update_chat_assistant(self, chat_id, dataset_id, cancellation_event=None):
         """
@@ -561,7 +689,9 @@ class RAGFlowClient:
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            print(f"❌ Error updating chat assistant: {e}")\
+            error_msg = str(e)
+            print(f"❌ Error updating chat assistant: {error_msg}")
+            raise Exception(f"Failed to update chat assistant with dataset: {error_msg}")\
 
 
     def is_dataset_include_parsed_file(self, dataset_id):
@@ -612,5 +742,7 @@ class RAGFlowClient:
                     "❌ Dataset does not include parsed file. Skipping chat assistant update.")
                 return
         except Exception as e:
-            print(f"❌ Error updating chat assistant: {e}")
+            error_msg = str(e)
+            print(f"❌ Error updating chat assistant: {error_msg}")
+            raise Exception(f"Failed to update chat assistant with dataset: {error_msg}")
             raise
