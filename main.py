@@ -22,12 +22,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize RAGFlow client with error handling
+# Initialize RAGFlow client - crashes if not properly configured
 try:
     ragflow = RAGFlowClient()
-    ragflow_available = True
 except Exception as e:
-    raise Exception(f"❌ RAGFlow server is not available: {e}")
+    error_msg = str(e)
+    if "Invalid RAGFlow API key" in error_msg:
+        print("❌ Invalid RAGFlow API key. Please set RAGFLOW_API_KEY environment variable.")
+        print("Usage:")
+        print("  Docker: docker run -e RAGFLOW_API_KEY='your-key-here' -p 4444:4444 doctoinsight-api")
+        print("  Python: RAGFLOW_API_KEY='your-key-here' python main.py")
+        raise SystemExit(1)
+    elif "Access forbidden" in error_msg:
+        print("❌ Access forbidden. Please check your RAGFlow API key permissions.")
+        raise SystemExit(1)
+    elif "You need to start the RAGFlow server first" in error_msg:
+        print("❌ You need to start the RAGFlow server first.")
+        raise SystemExit(1)
+    else:
+        print(f"❌ RAGFlow initialization failed: {error_msg}")
+        raise SystemExit(1)
 
 
 analysis_results = {}
@@ -37,28 +51,13 @@ cancellation_events = {}
 
 @app.get("/")
 async def root():
-    if not ragflow_available:
-        return {
-            "message": "❌ You need to start the RAGFlow server first.",
-            "status": "error",
-            "ragflow_available": False
-        }
-    return {
-        "message": "Welcome to document analysis API. Please upload a document file.",
-        "ragflow_available": True
-    }
+    return {"message": "Welcome to document analysis API. Please upload a document file."}
 
 
 @app.post("/main")
 async def main(
     file: UploadFile = File(...),
 ):
-    if not ragflow_available:
-        raise HTTPException(
-            status_code=503,
-            detail="❌ You need to start the RAGFlow server first."
-        )
-
     try:
         file_name, file_path = await upload_file(file)
 

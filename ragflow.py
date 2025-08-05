@@ -12,9 +12,17 @@ import random
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 1
 
-RAGFLOW_API_KEY = "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz"
-RAGFLOW_API_KEY = "ragflow-M3MzFmNTgwNmNmNTExZjBiY2M4OTY4Yz"
+# Get API key from environment variable, with fallback to hardcoded key for development
+RAGFLOW_API_KEY = os.getenv("RAGFLOW_API_KEY", "1234")
 BASE_URL = os.getenv("RAGFLOW_BASE_URL", "http://localhost:9380")
+
+# Validate API key is provided
+if not RAGFLOW_API_KEY or RAGFLOW_API_KEY.strip() == "":
+    print("❌ RAGFLOW_API_KEY environment variable is required.")
+    print("Usage:")
+    print("  Docker: docker run -e RAGFLOW_API_KEY='your-key-here' -p 4444:4444 doctoinsight-api")
+    print("  Python: RAGFLOW_API_KEY='your-key-here' python main.py")
+    raise SystemExit(1)
 PARSED = "1"
 
 # RAGFLOW ENDPOINT
@@ -151,12 +159,29 @@ class RAGFlowClient:
                 print(f"✅ Dataset created: {self.dataset_id}")
                 return dataset_info['id']
             else:
-                print("❌ You need to start the RAGFlow server first.")
-                raise Exception("You need to start the RAGFlow server first.")
+                error_msg = result.get('message', 'Unknown error')
+                if 'authentication' in error_msg.lower() or 'unauthorized' in error_msg.lower():
+                    print("❌ Invalid RAGFlow API key. Please check your API key.")
+                    raise Exception("Invalid RAGFlow API key. Please check your API key.")
+                else:
+                    print(f"❌ RAGFlow API error: {error_msg}")
+                    raise Exception(f"RAGFlow API error: {error_msg}")
         except (ConnectionError, RequestException):
             print("❌ You need to start the RAGFlow server first.")
             raise Exception("You need to start the RAGFlow server first.")
-        except Exception:
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                print("❌ Invalid RAGFlow API key. Please check your API key.")
+                raise Exception("Invalid RAGFlow API key. Please check your API key.")
+            elif e.response.status_code == 403:
+                print("❌ Access forbidden. Please check your RAGFlow API key permissions.")
+                raise Exception("Access forbidden. Please check your RAGFlow API key permissions.")
+            else:
+                print(f"❌ RAGFlow server error: HTTP {e.response.status_code}")
+                raise Exception(f"RAGFlow server error: HTTP {e.response.status_code}")
+        except Exception as e:
+            if "Invalid RAGFlow API key" in str(e) or "Access forbidden" in str(e) or "RAGFlow API error" in str(e):
+                raise  # Re-raise specific errors without modification
             print("❌ You need to start the RAGFlow server first.")
             raise Exception("You need to start the RAGFlow server first.")
 
@@ -204,7 +229,19 @@ class RAGFlowClient:
         except (ConnectionError, RequestException):
             print("❌ You need to start the RAGFlow server first.")
             raise Exception("You need to start the RAGFlow server first.")
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                print("❌ Invalid RAGFlow API key. Please check your API key.")
+                raise Exception("Invalid RAGFlow API key. Please check your API key.")
+            elif e.response.status_code == 403:
+                print("❌ Access forbidden. Please check your RAGFlow API key permissions.")
+                raise Exception("Access forbidden. Please check your RAGFlow API key permissions.")
+            else:
+                print(f"❌ RAGFlow server error: HTTP {e.response.status_code}")
+                raise Exception(f"RAGFlow server error: HTTP {e.response.status_code}")
         except Exception as e:
+            if "Invalid RAGFlow API key" in str(e) or "Access forbidden" in str(e):
+                raise  # Re-raise specific errors without modification
             print(f"❌ Error creating chat assistant: {e}")
             raise Exception("Failed to create chat assistant")
 
